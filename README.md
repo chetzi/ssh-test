@@ -181,4 +181,4 @@ By following this guide, you learned:
 * How to test SSH logins
 * How to export config files
 
-This completes **Exercise 2** exactly as required.
+
