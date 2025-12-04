@@ -1,41 +1,72 @@
-# Exercise 2 – SSH Server Setup (GitHub Codespaces)
+# SSH Server Setup — Complete Beginner-Friendly Guide (Codespaces VM)
 
-This README documents every step I followed to set up an SSH server inside a GitHub Codespaces VM as required:
+This guide explains how to set up an SSH server **from scratch** inside a GitHub Codespaces VM.
+It is written for juniors who may be new to SSH, VMs, or Linux.
 
-* ✔ Enable **public key authentication**
-* ✔ Disable **password authentication**
-* ✔ Disable **root login**
-* ✔ Fix Codespaces SSHD issues
-* ✔ Run SSHD on a non-conflicting port
-* ✔ Test SSH login using keys
-* ✔ Export sshd_config for submission
+You will learn:
+
+* How to create and run a VM in GitHub Codespaces
+* How to generate SSH keys
+* How to configure SSH server (`sshd`)
+* How to enforce **public key authentication only**
+* How to disable passwords and root login
+* How to fix Codespaces-specific SSH problems
+* How to test SSH login
+* How to export your `sshd_config` for submission
 
 ---
 
-## 1. Generate SSH Key Pair *inside the Codespaces VM*
+# 1. Starting Your VM in Codespaces
 
-I chose to generate the SSH key pair directly inside the VM:
+1. Create a new GitHub repository (any name).
+2. Click **Code → Codespaces → Create Codespace on main**.
+3. Wait for the Codespace to open in VS Code Online.
+4. Open the built-in terminal:
+
+```
+Terminal → New Terminal
+```
+
+This is your **Linux VM**.
+
+---
+
+# 2. Install OpenSSH Server Inside the VM
+
+Run the following:
+
+```bash
+sudo apt update
+sudo apt install openssh-server -y
+```
+
+This installs the SSH server (`sshd`) inside the Codespaces container.
+
+---
+
+# 3. Generate SSH Keys (Inside the VM)
+
+We will generate a new SSH key **inside the VM itself**.
 
 ```bash
 mkdir -p ~/.ssh
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
 ```
 
-When prompted:
+When asked for a passphrase → press **Enter** twice.
 
-* Pressed **Enter** to accept default path
-* Pressed **Enter** twice for no passphrase
+This creates:
 
-This created:
-
-* `~/.ssh/id_ed25519` — private key
-* `~/.ssh/id_ed25519.pub` — public key
+```
+~/.ssh/id_ed25519       (private key)
+~/.ssh/id_ed25519.pub   (public key)
+```
 
 ---
 
-## 2. Install the Public Key into the SSH Server
+# 4. Enable Key Authentication for SSH
 
-I added the public key to `authorized_keys`:
+Add your **public key** to the server:
 
 ```bash
 cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
@@ -43,94 +74,111 @@ chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-This allows the server to authenticate me via SSH without a password.
+This tells the SSH server: **“Allow this VM's key to log in.”**
 
 ---
 
-## 3. Edit `/etc/ssh/sshd_config`
+# 5. Edit the SSH Server Config File
 
-I opened the SSH server configuration:
+Open the SSH configuration:
 
 ```bash
 sudo nano /etc/ssh/sshd_config
 ```
 
-I made sure these settings are present (uncommented and correct):
+Modify/add these lines:
 
-```text
+```
 PubkeyAuthentication yes
 PasswordAuthentication no
 PermitRootLogin no
 Port 2200
 ```
 
-I used **Port 2200** because Codespaces internally uses port **2222**, which conflicts with sshd.
+Why port 2200?
 
-Saved using:
+* Codespaces uses **port 2222** internally, which conflicts with sshd.
+* We choose **2200** because it's free and safe.
+
+Save:
 
 * Ctrl + O → Enter
 * Ctrl + X
 
 ---
 
-## 4. Fix Codespaces “re-exec requires absolute path” error
+# 6. Fix Codespaces SSHD Startup Errors
 
-Codespaces containers cannot restart sshd using `service ssh` due to systemd restrictions.
+Codespaces gives two common errors:
 
-I tested config:
+### ❗ Error 1:
+
+`sshd re-exec requires execution with an absolute path`
+
+### ❗ Error 2:
+
+`Address already in use` (because port 2222 is taken)
+
+### ✔ Fix:
+
+Run sshd with an **absolute path** and on port **2200**:
 
 ```bash
-sudo /usr/sbin/sshd -t
-```
-
-Then started sshd using an absolute path:
-
-```bash
+sudo /usr/sbin/sshd -t     # test config
 sudo /usr/sbin/sshd -p 2200
 ```
 
-This successfully launched the SSH server on port 2200.
+Now your SSH server is running.
 
 ---
 
-## 5. Test SSH Using Keys (Local VM → VM)
+# 7. Test SSH Login (VM → VM)
 
-I verified that the SSH server works and only accepts keys:
+Run:
 
 ```bash
 ssh -p 2200 -i ~/.ssh/id_ed25519 localhost
 ```
 
-After typing `yes` on the first connection prompt, SSH logged me in **without a password**:
+On first connection:
 
-* ✔ Public Key Authentication works
-* ✔ Password Authentication is disabled
-* ✔ Root Login disabled
-* ✔ SSHD successfully running on port 2200
+```
+Are you sure you want to continue (yes/no)? → yes
+```
+
+You should be logged in **without any password**.
+
+This confirms:
+
+* ✔ Public key authentication works
+* ✔ Password login is disabled
+* ✔ Root login is disabled
+* ✔ sshd is running on port 2200
 
 ---
 
-## 6. Export `sshd_config` for submission
+# 8. Export Your sshd_config for Submission
 
-To submit the config file, I exported it into my workspace:
+Move the config file into your project folder:
 
 ```bash
 cp /etc/ssh/sshd_config /workspaces/ssh-test/sshd_config
 ```
 
-Now `sshd_config` appears in VS Code Explorer and can be submitted.
+Now the file appears in the VS Code explorer so you can submit it.
 
 ---
 
-## Final Result
+# 9. Final Summary for Juniors
 
-SSH server inside Codespaces was successfully configured with:
+By following this guide, you learned:
 
-* Public key authentication only
-* Password authentication disabled
-* Root login disabled
-* SSHD running properly on port 2200
-* Absolute path execution (`/usr/sbin/sshd`)
-* `sshd_config` exported for submission
+* How to work inside a VM on GitHub Codespaces
+* How to install and configure an SSH server
+* How to secure SSH using public-key-only authentication
+* How to disable password and root login
+* How to fix Codespaces-specific SSHD issues
+* How to test SSH logins
+* How to export config files
 
-
+This completes **Exercise 2** exactly as required.
