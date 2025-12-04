@@ -1,278 +1,136 @@
-# SSH Setup & Secure Configuration – Step-by-Step (GitHub Codespaces)
+# Exercise 2 – SSH Server Setup (GitHub Codespaces)
 
-**Author:** Chetan Patil
-**Platform:** GitHub Codespaces (Ubuntu Linux container)
-**Goal:** Show every exact step + command I used to install, configure, and test an SSH server in Codespaces, including how to fix the `systemd` error.
+This README documents every step I followed to set up an SSH server inside a GitHub Codespaces VM as required:
 
----
-
-## 0. Prerequisites
-
-1. GitHub account
-2. A repository to host this setup (example: `ssh-test`)
-
----
-
-## 1. Create Repo & Start Codespace
-
-### 1.1 Create repository
-
-In GitHub:
-
-1. Click **New repository**
-2. Name it: `ssh-test`
-3. Check **“Add a README file”**
-4. Click **Create repository**
-
-### 1.2 Open Codespace
-
-1. Go to the repo: `https://github.com/<your-username>/ssh-test`
-2. Click the green **Code** button
-3. Go to the **Codespaces** tab
-4. Click **“Create codespace on main”**
-
-Wait until the online VS Code editor opens.
+* ✔ Enable **public key authentication**
+* ✔ Disable **password authentication**
+* ✔ Disable **root login**
+* ✔ Fix Codespaces SSHD issues
+* ✔ Run SSHD on a non-conflicting port
+* ✔ Test SSH login using keys
+* ✔ Export sshd_config for submission
 
 ---
 
-## 2. Open Terminal in Codespaces
+## 1. Generate SSH Key Pair *inside the Codespaces VM*
 
-In the top menu:
-
-* Click **Terminal → New Terminal**
-
-You should see a prompt similar to:
+I chose to generate the SSH key pair directly inside the VM:
 
 ```bash
-@<username> ➜ /workspaces/ssh-test (main) $
-```
-
----
-
-## 3. Install OpenSSH Server
-
-Run these commands **in order**:
-
-```bash
-# 1) Update package list
-sudo apt update
-
-# 2) Install OpenSSH server
-sudo apt install openssh-server -y
-```
-
----
-
-## 4. Handle the “systemd is not running” Error
-
-If you try:
-
-```bash
-sudo systemctl enable ssh
-sudo systemctl start ssh
-```
-
-you will see:
-
-```text
-"systemd" is not running in this container due to its overhead.
-Use the "service" command to start services instead.
-```
-
-This is **normal** in Codespaces.
-
-### Use `service` instead of `systemctl`:
-
-```bash
-# Start SSH server
-sudo service ssh start
-
-# (Optional) Restart SSH server
-sudo service ssh restart
-
-# Check SSH server status
-sudo service ssh status
-```
-
-You should see something like:
-
-```text
-* OpenBSD Secure Shell server sshd
-   ...
-   [ OK ] sshd is running
-```
-
----
-
-## 5. Generate SSH Keys (If Needed)
-
-Check if you already have keys:
-
-```bash
-ls ~/.ssh
-```
-
-If you do **not** see `id_rsa` and `id_rsa.pub`, create them:
-
-```bash
-ssh-keygen
-```
-
-Just press **Enter** for all prompts to accept defaults.
-
-This creates:
-
-* `~/.ssh/id_rsa`      → private key
-* `~/.ssh/id_rsa.pub`  → public key
-
----
-
-## 6. Allow Your Own Key to Log In (authorized_keys)
-
-Add your public key to `authorized_keys`:
-
-```bash
-# Make sure .ssh directory exists
 mkdir -p ~/.ssh
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+```
 
-# Append your public key to authorized_keys
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+When prompted:
 
-# Set correct permissions
+* Pressed **Enter** to accept default path
+* Pressed **Enter** twice for no passphrase
+
+This created:
+
+* `~/.ssh/id_ed25519` — private key
+* `~/.ssh/id_ed25519.pub` — public key
+
+---
+
+## 2. Install the Public Key into the SSH Server
+
+I added the public key to `authorized_keys`:
+
+```bash
+cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
 ```
 
+This allows the server to authenticate me via SSH without a password.
+
 ---
 
-## 7. Configure the SSH Server (sshd_config)
+## 3. Edit `/etc/ssh/sshd_config`
 
-The main config file is:
-
-```text
-/etc/ssh/sshd_config
-```
-
-### 7.1 Open the config file
+I opened the SSH server configuration:
 
 ```bash
 sudo nano /etc/ssh/sshd_config
 ```
 
-### 7.2 Minimal secure configuration
-
-Inside `nano`, scroll and either **edit existing lines** or **add these lines** (near the top or bottom is fine):
+I made sure these settings are present (uncommented and correct):
 
 ```text
-# --- Custom secure SSH settings (added by Chetan) ---
-
-# Only allow public key authentication
 PubkeyAuthentication yes
-
-# Explicitly disable password-based logins
 PasswordAuthentication no
-ChallengeResponseAuthentication no
-KbdInteractiveAuthentication no
-
-# Disallow root login over SSH
 PermitRootLogin no
-
-# Optional: restrict to IPv4 only (comment out if not needed)
-# AddressFamily inet
+Port 2200
 ```
 
-> If any of these lines already exist with different values, update them instead of adding duplicates.
+I used **Port 2200** because Codespaces internally uses port **2222**, which conflicts with sshd.
 
-### 7.3 Save and exit
+Saved using:
 
-* Press **Ctrl + O**, then **Enter** to save
-* Press **Ctrl + X** to exit `nano`
-
-### 7.4 Restart SSH to apply config
-
-```bash
-sudo service ssh restart
-sudo service ssh status
-```
-
-Make sure it’s still **running** and there are **no errors**.
+* Ctrl + O → Enter
+* Ctrl + X
 
 ---
 
-## 8. Test SSH Login (Localhost Inside Codespaces)
+## 4. Fix Codespaces “re-exec requires absolute path” error
 
-Open a **second** terminal tab:
+Codespaces containers cannot restart sshd using `service ssh` due to systemd restrictions.
 
-* **Terminal → New Terminal**
-
-In the new terminal, run:
+I tested config:
 
 ```bash
-ssh -i ~/.ssh/id_rsa $(whoami)@localhost
+sudo /usr/sbin/sshd -t
 ```
 
-Explanation:
-
-* `-i ~/.ssh/id_rsa` → use your private key
-* `$(whoami)`       → your current username
-* `localhost`       → connect to the same container
-
-### Expected behavior
-
-* You **do not** get a password prompt
-* You **successfully log in** using your SSH key
-* Root login is **not** allowed (you can verify by trying:)
+Then started sshd using an absolute path:
 
 ```bash
-ssh root@localhost
+sudo /usr/sbin/sshd -p 2200
 ```
 
-You should see a **“Permission denied”** message.
+This successfully launched the SSH server on port 2200.
 
 ---
 
-## 9. Summary of All Commands (Cheat Sheet)
+## 5. Test SSH Using Keys (Local VM → VM)
 
-For quick copy-paste:
+I verified that the SSH server works and only accepts keys:
 
 ```bash
-# --- Install SSH server ---
-sudo apt update
-sudo apt install openssh-server -y
-
-# --- Start/Restart/Status (Codespaces uses service, not systemctl) ---
-sudo service ssh start
-sudo service ssh restart
-sudo service ssh status
-
-# --- Generate SSH keys (if needed) ---
-ssh-keygen
-
-# --- Add public key to authorized_keys ---
-mkdir -p ~/.ssh
-cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
-
-# --- Edit SSH config ---
-sudo nano /etc/ssh/sshd_config
-# (then add the snippet shown above)
-
-# --- Restart SSH after config changes ---
-sudo service ssh restart
-sudo service ssh status
-
-# --- Test SSH locally inside Codespaces ---
-ssh -i ~/.ssh/id_rsa $(whoami)@localhost
+ssh -p 2200 -i ~/.ssh/id_ed25519 localhost
 ```
+
+After typing `yes` on the first connection prompt, SSH logged me in **without a password**:
+
+* ✔ Public Key Authentication works
+* ✔ Password Authentication is disabled
+* ✔ Root Login disabled
+* ✔ SSHD successfully running on port 2200
 
 ---
 
-## 10. Final Notes for Juniors
+## 6. Export `sshd_config` for submission
 
-* In **real cloud VMs** (AWS, Azure, etc.) you usually **can** use `systemctl`.
-* In **GitHub Codespaces**, you must use `service` because `systemd` is not running.
-* Always restart SSH after editing `sshd_config`.
-* Public-key-only + no root login is standard hardening for production SSH servers.
+To submit the config file, I exported it into my workspace:
 
-You can now reuse this README as a template for your own projects or to help other students.
+```bash
+cp /etc/ssh/sshd_config /workspaces/ssh-test/sshd_config
+```
+
+Now `sshd_config` appears in VS Code Explorer and can be submitted.
+
+---
+
+## Final Result
+
+SSH server inside Codespaces was successfully configured with:
+
+* Public key authentication only
+* Password authentication disabled
+* Root login disabled
+* SSHD running properly on port 2200
+* Absolute path execution (`/usr/sbin/sshd`)
+* `sshd_config` exported for submission
+
+
