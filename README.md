@@ -58,8 +58,8 @@ When asked for a passphrase → press **Enter** twice.
 This creates:
 
 ```
-~/.ssh/id_ed25519       (private key)
-~/.ssh/id_ed25519.pub   (public key)
+~/.ssh/id_ed283894 (its example)       (private key)
+~/.ssh/id_ed283894.pub (its example)  (public key)
 ```
 
 ---
