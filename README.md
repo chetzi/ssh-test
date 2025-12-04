@@ -69,7 +69,7 @@ This creates:
 Add your **public key** to the server:
 
 ```bash
-cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+cat ~/.ssh/id_ed283894.pub >> ~/.ssh/authorized_keys
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
 ```
@@ -137,7 +137,7 @@ Now your SSH server is running.
 Run:
 
 ```bash
-ssh -p 2200 -i ~/.ssh/id_ed25519 localhost
+ssh -p 2200 -i ~/.ssh/id_ed283894 localhost
 ```
 
 On first connection:
