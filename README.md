@@ -1,7 +1,7 @@
 # SSH Server Setup — Complete Beginner-Friendly Guide (Codespaces VM)
 
 This guide explains how to set up an SSH server **from scratch** inside a GitHub Codespaces VM.
-It is written for juniors who may be new to SSH, VMs, or Linux.
+
 
 You will learn:
 
@@ -169,7 +169,7 @@ Now the file appears in the VS Code explorer so you can submit it.
 
 ---
 
-# 9. Final Summary for Juniors
+# 9. Final Summary 
 
 By following this guide, you learned:
 
