@@ -1,4 +1,4 @@
-# SSH Server Setup — Complete Beginner-Friendly Guide (Codespaces VM)
+# SSH Server Setup — Complete Beginner-Friendly Guide (Codespaces VM) (EX 3.2 & EX 3.5) 3.5 is in bottom 
 
 This guide explains how to set up an SSH server **from scratch** inside a GitHub Codespaces VM.
 
