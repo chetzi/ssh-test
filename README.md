@@ -182,3 +182,127 @@ By following this guide, you learned:
 * How to export config files
 
 
+  ## Exercise 5 – Private Equality Testing (PEQ)
+
+This exercise implements the protocol from Section 4.8, where Alice and Bob want to check if their private values `x` and `y` are equal **without revealing anything else** when they differ. The protocol uses a **PRF** built from a **block cipher (AES)** via OpenSSL.
+
+---
+
+### PRF Construction
+
+We define a pseudorandom function (F_k(m)) using a shared secret key `k` stored in `key.bin`:
+
+1. Compute SHA-256 of the message `m`.
+2. Take the first 16 bytes (32 hex chars) of the hash.
+3. Encrypt that 16-byte block with **AES-128-ECB** under key `k`.
+4. The ciphertext is interpreted as the PRF output:
+
+[
+F_k(m) = \text{AES-128-ECB}_k(\text{first 16 bytes of SHA256}(m))
+]
+
+This matches the idea from Section 4.4.3 that a block cipher can be used as a PRF.
+
+---
+
+### Protocol Overview
+
+**Shared setup**
+
+* Alice and Bob both have the same secret key `k` in `key.bin`.
+
+**Alice (input `x`)**
+
+1. Generate a fresh 16-byte random nonce `r` (hex string).
+2. Compute:
+
+   ```text
+   token = F_k(x || r)
+   ```
+3. Send **`r`** and **`token`** to Bob.
+4. Alice never sends `x` directly.
+
+**Bob (input `y`)**
+
+1. Receive `r` and `token` from Alice.
+2. Compute:
+
+   ```text
+   token_b = F_k(y || r)
+   ```
+3. Compare:
+
+   * If `token_b == token` → conclude `x == y`.
+   * Else → conclude `x != y`.
+
+Bob only learns whether the values are equal; he does not learn anything else about `x` when they differ.
+
+---
+
+### Security Intuition
+
+* The PRF output looks random to anyone who does not know `k`.
+* The nonce `r` ensures that even if the same `x` is used twice, the resulting tokens look unrelated.
+* Alice cannot cheat and force equality unless `x == y`, because she does not know `y` or the PRF output on `y || r`.
+* Bob cannot recover `x` from `token`, since reversing AES-128-ECB as a PRF is computationally infeasible.
+
+Overall, the protocol leaks only **one bit** of information: whether `x == y`.
+
+---
+
+### How to Run `peq.sh`
+
+From inside the project directory:
+
+1. Make the script executable (once):
+
+   ```bash
+   chmod +x peq.sh
+   ```
+
+2. Generate the shared key:
+
+   ```bash
+   ./peq.sh genkey
+   ```
+
+   This creates a random 16-byte key in `key.bin`.
+
+3. Alice’s side:
+
+   ```bash
+   ./peq.sh alice <x>
+   ```
+
+   Example output:
+
+   ```text
+   Alice output (send this to Bob):
+   r      = d6eafff96c090c43874d5ee3b1e0a5df
+   token  = e62085f16475871280e238062386d550d8b4
+   ```
+
+4. Bob’s side (same value):
+
+   ```bash
+   ./peq.sh bob <y> <r> <token>
+   ```
+
+   If `y` is the same as `x`, the script prints:
+
+   ```text
+   Result: x == y (values are equal).
+   ```
+
+5. Bob’s side (different value):
+
+   If `y` is different from `x`, the script prints:
+
+   ```text
+   Result: x != y (values differ).
+   ```
+
+This demonstrates a complete working implementation of private equality testing using a PRF built from AES and OpenSSL.
+
+
+
